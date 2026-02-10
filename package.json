@@ -1,0 +1,31 @@
+{
+  "name": "home.assistant.app",
+  "version": "1.0.0",
+  "description": "Home Assistant Companion App - Desktop sensor integration",
+  "author": "Phillippe Pelzer",
+  "main": "main.js",
+  "license": "MIT",
+  "scripts": {
+    "start": "electron .",
+    "package": "electron-forge package",
+    "make": "electron-forge make"
+  },
+  "devDependencies": {
+    "@electron-forge/cli": "^7.0.0",
+    "@electron-forge/maker-deb": "^7.11.1",
+    "@electron-forge/maker-dmg": "^7.11.1",
+    "@electron-forge/maker-rpm": "^7.11.1",
+    "@electron-forge/maker-squirrel": "^7.0.0",
+    "@electron-forge/maker-zip": "^7.11.1",
+    "electron": "latest",
+    "png2icons": "^2.0.1",
+    "sharp": "^0.34.5",
+    "to-ico": "^1.1.5",
+    "ws": "^8.19.0"
+  },
+  "dependencies": {
+    "electron-squirrel-startup": "^1.0.1",
+    "mqtt": "^5.15.0",
+    "systeminformation": "^5.30.7"
+  }
+}

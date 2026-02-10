@@ -1,0 +1,83 @@
+name: Auto Version Bump and Release
+
+on:
+  push:
+    branches:
+      - main
+    paths-ignore:
+      - '**.md'
+      - 'LICENSE'
+      - '.github/**'
+      - '.gitignore'
+      - '_debug.js'
+      - '**.bak'
+
+permissions:
+  contents: write
+
+jobs:
+  version-bump-and-release:
+    runs-on: windows-latest
+    # Skip if the commit was made by the bot (prevents infinite loop)
+    if: "!contains(github.event.head_commit.message, 'chore: bump version')"
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Get current version and bump patch
+        id: bump
+        shell: pwsh
+        run: |
+          $pkg = Get-Content package.json -Raw | ConvertFrom-Json
+          $current = $pkg.version
+          Write-Host "Current version: $current"
+
+          $parts = $current.Split('.')
+          $parts[2] = [string]([int]$parts[2] + 1)
+          $newVersion = $parts -join '.'
+          Write-Host "New version: $newVersion"
+
+          echo "new_version=$newVersion" >> $env:GITHUB_OUTPUT
+
+      - name: Update package.json version
+        shell: pwsh
+        run: |
+          npm version ${{ steps.bump.outputs.new_version }} --no-git-tag-version --allow-same-version
+
+      - name: Commit version bump and create tag
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add package.json
+          git commit -m "chore: bump version to ${{ steps.bump.outputs.new_version }}"
+          git tag "v${{ steps.bump.outputs.new_version }}"
+          git push origin main --tags
+
+      - name: Force HTTPS instead of SSH for git
+        run: git config --global url."https://github.com/".insteadOf ssh://git@github.com/
+
+      - name: Install dependencies
+        run: yarn install
+
+      - name: Build installer
+        run: yarn make
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.bump.outputs.new_version }}
+          name: Home Assistant Companion v${{ steps.bump.outputs.new_version }}
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+          files: |
+            out/make/squirrel.windows/x64/*.exe
+            out/make/squirrel.windows/x64/*.nupkg

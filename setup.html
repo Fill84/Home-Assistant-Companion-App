@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            margin: 0;
+            color: #e0e0e0;
+        }
+
+        .container {
+            background: rgba(255, 255, 255, 0.07);
+            backdrop-filter: blur(10px);
+            padding: 2.5rem;
+            border-radius: 16px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            text-align: center;
+            width: 450px;
+        }
+
+        .logo {
+            font-size: 48px;
+            margin-bottom: 0.5rem;
+        }
+
+        h2 {
+            margin: 0 0 0.25rem 0;
+            color: #ffffff;
+            font-size: 1.5rem;
+        }
+
+        .subtitle {
+            color: #8899aa;
+            font-size: 0.85rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .section-title {
+            text-align: left;
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: #03a9f4;
+            margin-top: 18px;
+            margin-bottom: 4px;
+            padding-bottom: 4px;
+            border-bottom: 1px solid rgba(3, 169, 244, 0.2);
+        }
+
+        label {
+            display: block;
+            text-align: left;
+            font-size: 0.85rem;
+            color: #aabbcc;
+            margin-bottom: 4px;
+            margin-top: 10px;
+        }
+
+        input,
+        select {
+            width: 100%;
+            padding: 10px 12px;
+            margin: 0 0 4px 0;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.06);
+            color: #ffffff;
+            font-size: 14px;
+            transition: border-color 0.2s;
+        }
+
+        input::placeholder {
+            color: #667788;
+        }
+
+        input:focus,
+        select:focus {
+            outline: none;
+            border-color: #03a9f4;
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        select option {
+            background: #1a1a2e;
+            color: #ffffff;
+        }
+
+        .hint {
+            font-size: 0.75rem;
+            color: #667788;
+            text-align: left;
+            margin-bottom: 4px;
+        }
+
+        .hint a {
+            color: #03a9f4;
+            text-decoration: none;
+        }
+
+        .row {
+            display: flex;
+            gap: 10px;
+        }
+
+        .row>div {
+            flex: 1;
+        }
+
+        .row>div.small {
+            flex: 0 0 90px;
+        }
+
+        button {
+            width: 100%;
+            padding: 12px;
+            margin-top: 20px;
+            background: linear-gradient(135deg, #03a9f4, #0288d1);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            transition: all 0.2s;
+            letter-spacing: 0.5px;
+        }
+
+        button:hover {
+            background: linear-gradient(135deg, #29b6f6, #0399e5);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(3, 169, 244, 0.3);
+        }
+
+        button:disabled {
+            background: #333;
+            color: #666;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        #error {
+            color: #ff6b6b;
+            margin-top: 12px;
+            font-size: 13px;
+            display: none;
+            background: rgba(255, 107, 107, 0.1);
+            padding: 8px 12px;
+            border-radius: 8px;
+            border: 1px solid rgba(255, 107, 107, 0.2);
+        }
+
+        #status {
+            margin-top: 12px;
+            font-size: 13px;
+            display: none;
+            color: #03a9f4;
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 14px;
+            height: 14px;
+            border: 2px solid rgba(3, 169, 244, 0.3);
+            border-top-color: #03a9f4;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            vertical-align: middle;
+            margin-right: 6px;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="logo">🖥️</div>
+        <h2>Desktop Companion</h2>
+        <p class="subtitle">Verbind deze computer als apparaat met Home Assistant via MQTT</p>
+
+        <div class="section-title">🏠 Home Assistant</div>
+
+        <label for="serverUrl">Server Adres</label>
+        <input type="text" id="serverUrl" placeholder="https://homeassistant.local:8123" />
+        <div class="hint">Het adres van je Home Assistant installatie</div>
+
+        <label for="token">Long-Lived Access Token</label>
+        <input type="password" id="token" placeholder="Plak je token hier..." />
+        <div class="hint">HA → Profiel → Beveiligingstokens</div>
+
+        <div class="section-title">📡 MQTT Broker</div>
+
+        <div class="row">
+            <div>
+                <label for="mqttBroker">Broker Adres</label>
+                <input type="text" id="mqttBroker" placeholder="192.168.178.22" />
+            </div>
+            <div class="small">
+                <label for="mqttPort">Poort</label>
+                <input type="number" id="mqttPort" value="1883" />
+            </div>
+        </div>
+        <div class="hint">IP-adres of hostname van de Mosquitto MQTT broker</div>
+
+        <div class="row">
+            <div>
+                <label for="mqttUser">Gebruiker (optioneel)</label>
+                <input type="text" id="mqttUser" placeholder="Laat leeg als geen auth" />
+            </div>
+            <div>
+                <label for="mqttPass">Wachtwoord (optioneel)</label>
+                <input type="password" id="mqttPass" placeholder="Laat leeg als geen auth" />
+            </div>
+        </div>
+
+        <div class="section-title">⚙️ Instellingen</div>
+
+        <label for="interval">Update Interval</label>
+        <select id="interval">
+            <option value="15">Elke 15 seconden</option>
+            <option value="30" selected>Elke 30 seconden</option>
+            <option value="60">Elke 60 seconden</option>
+            <option value="120">Elke 2 minuten</option>
+            <option value="300">Elke 5 minuten</option>
+        </select>
+        <div class="hint">Hoe vaak de sensorgegevens naar HA gestuurd worden</div>
+
+        <button id="connectBtn">Verbinden</button>
+        <div id="status"></div>
+        <div id="error"></div>
+    </div>
+
+    <script>
+        const btn = document.getElementById('connectBtn');
+        const urlInput = document.getElementById('serverUrl');
+        const tokenInput = document.getElementById('token');
+        const mqttBrokerInput = document.getElementById('mqttBroker');
+        const mqttPortInput = document.getElementById('mqttPort');
+        const mqttUserInput = document.getElementById('mqttUser');
+        const mqttPassInput = document.getElementById('mqttPass');
+        const intervalSelect = document.getElementById('interval');
+        const errorMsg = document.getElementById('error');
+        const statusMsg = document.getElementById('status');
+
+        function showStatus(text) {
+            statusMsg.innerHTML = '<span class="spinner"></span>' + text;
+            statusMsg.style.display = 'block';
+            errorMsg.style.display = 'none';
+        }
+
+        function showError(text) {
+            errorMsg.innerText = text;
+            errorMsg.style.display = 'block';
+            statusMsg.style.display = 'none';
+        }
+
+        function hideMessages() {
+            errorMsg.style.display = 'none';
+            statusMsg.style.display = 'none';
+        }
+
+        btn.addEventListener('click', async () => {
+            const url = urlInput.value.trim();
+            const token = tokenInput.value.trim();
+            const mqttBroker = mqttBrokerInput.value.trim();
+            const mqttPort = mqttPortInput.value.trim() || '1883';
+            const mqttUser = mqttUserInput.value.trim();
+            const mqttPass = mqttPassInput.value.trim();
+            const interval = parseInt(intervalSelect.value, 10);
+
+            if (!url) {
+                showError('Voer een HA server adres in.');
+                return;
+            }
+            if (!token) {
+                showError('Voer een Long-Lived Access Token in.');
+                return;
+            }
+            if (!mqttBroker) {
+                showError('Voer het MQTT broker adres in.');
+                return;
+            }
+
+            btn.disabled = true;
+            hideMessages();
+            showStatus('HA verbinding testen...');
+
+            try {
+                const result = await window.api.connect({
+                    url,
+                    token,
+                    mqtt_broker: mqttBroker,
+                    mqtt_port: mqttPort,
+                    mqtt_username: mqttUser,
+                    mqtt_password: mqttPass,
+                    interval,
+                });
+
+                if (result.success) {
+                    showStatus('Verbonden! Dashboard wordt geladen...');
+                } else {
+                    btn.disabled = false;
+                    showError(result.error || 'Kan geen verbinding maken.');
+                }
+            } catch (e) {
+                btn.disabled = false;
+                showError('Er is een onverwachte fout opgetreden.');
+            }
+        });
+
+        // Allow Enter key to submit
+        [urlInput, tokenInput, mqttBrokerInput, mqttPortInput].forEach(input => {
+            input.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') btn.click();
+            });
+        });
+    </script>
+</body>
+
+</html>

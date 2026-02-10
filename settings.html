@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        html,
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background: transparent;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            color: #e0e0e0;
+            -webkit-app-region: no-drag;
+        }
+
+        .backdrop {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.55);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .container {
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            padding: 2rem 2.5rem 2.5rem;
+            border-radius: 16px;
+            box-shadow: 0 12px 48px rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            width: 440px;
+            max-height: 90vh;
+            overflow-y: auto;
+            position: relative;
+        }
+
+        .header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 16px;
+        }
+
+        .header h2 {
+            margin: 0;
+            color: #fff;
+            font-size: 1.3rem;
+        }
+
+        .close-btn {
+            background: none;
+            border: none;
+            color: #8899aa;
+            font-size: 22px;
+            cursor: pointer;
+            padding: 4px 8px;
+            border-radius: 6px;
+            transition: all 0.15s;
+            width: auto;
+            margin: 0;
+        }
+
+        .close-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+            color: #fff;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .section-title {
+            text-align: left;
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: #03a9f4;
+            margin-top: 14px;
+            margin-bottom: 2px;
+            padding-bottom: 3px;
+            border-bottom: 1px solid rgba(3, 169, 244, 0.2);
+        }
+
+        label {
+            display: block;
+            text-align: left;
+            font-size: 0.8rem;
+            color: #aabbcc;
+            margin-bottom: 3px;
+            margin-top: 8px;
+        }
+
+        input,
+        select {
+            width: 100%;
+            padding: 8px 10px;
+            margin: 0 0 2px 0;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.06);
+            color: #ffffff;
+            font-size: 13px;
+            transition: border-color 0.2s;
+        }
+
+        input::placeholder {
+            color: #667788;
+        }
+
+        input:focus,
+        select:focus {
+            outline: none;
+            border-color: #03a9f4;
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        select option {
+            background: #1a1a2e;
+            color: #ffffff;
+        }
+
+        .hint {
+            font-size: 0.7rem;
+            color: #556677;
+            text-align: left;
+        }
+
+        .row {
+            display: flex;
+            gap: 10px;
+        }
+
+        .row>div {
+            flex: 1;
+        }
+
+        .row>div.small {
+            flex: 0 0 80px;
+        }
+
+        .btn-row {
+            display: flex;
+            gap: 10px;
+            margin-top: 18px;
+        }
+
+        button {
+            flex: 1;
+            padding: 10px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+
+        .btn-save {
+            background: linear-gradient(135deg, #03a9f4, #0288d1);
+            color: white;
+        }
+
+        .btn-save:hover {
+            background: linear-gradient(135deg, #29b6f6, #0399e5);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(3, 169, 244, 0.3);
+        }
+
+        .btn-save:disabled {
+            background: #333;
+            color: #666;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .btn-cancel {
+            background: rgba(255, 255, 255, 0.08);
+            color: #aabbcc;
+            border: 1px solid rgba(255, 255, 255, 0.12);
+        }
+
+        .btn-cancel:hover {
+            background: rgba(255, 255, 255, 0.14);
+            color: #fff;
+            transform: translateY(-1px);
+        }
+
+        #status {
+            margin-top: 10px;
+            font-size: 12px;
+            display: none;
+            color: #03a9f4;
+            text-align: center;
+        }
+
+        #error {
+            color: #ff6b6b;
+            margin-top: 10px;
+            font-size: 12px;
+            display: none;
+            background: rgba(255, 107, 107, 0.1);
+            padding: 6px 10px;
+            border-radius: 8px;
+            border: 1px solid rgba(255, 107, 107, 0.2);
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border: 2px solid rgba(3, 169, 244, 0.3);
+            border-top-color: #03a9f4;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            vertical-align: middle;
+            margin-right: 5px;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* Custom scrollbar */
+        .container::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .container::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .container::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.15);
+            border-radius: 3px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="backdrop" id="backdrop">
+        <div class="container">
+            <div class="header">
+                <h2>⚙️ Instellingen</h2>
+                <button class="close-btn" id="closeBtn" title="Sluiten">✕</button>
+            </div>
+
+            <div class="section-title">🏠 Home Assistant</div>
+
+            <label for="serverUrl">Server Adres</label>
+            <input type="text" id="serverUrl" placeholder="https://homeassistant.local:8123" />
+
+            <label for="token">Long-Lived Access Token</label>
+            <input type="password" id="token" placeholder="Plak je token hier..." />
+            <div class="hint">Laat leeg om het huidige token te behouden</div>
+
+            <div class="section-title">📡 MQTT Broker</div>
+
+            <div class="row">
+                <div>
+                    <label for="mqttBroker">Broker Adres</label>
+                    <input type="text" id="mqttBroker" placeholder="192.168.178.22" />
+                </div>
+                <div class="small">
+                    <label for="mqttPort">Poort</label>
+                    <input type="number" id="mqttPort" value="1883" />
+                </div>
+            </div>
+
+            <div class="row">
+                <div>
+                    <label for="mqttUser">Gebruiker</label>
+                    <input type="text" id="mqttUser" placeholder="Optioneel" />
+                </div>
+                <div>
+                    <label for="mqttPass">Wachtwoord</label>
+                    <input type="password" id="mqttPass" placeholder="Optioneel" />
+                </div>
+            </div>
+
+            <div class="section-title">⚙️ Overig</div>
+
+            <label for="interval">Update Interval</label>
+            <select id="interval">
+                <option value="15">Elke 15 seconden</option>
+                <option value="30">Elke 30 seconden</option>
+                <option value="60">Elke 60 seconden</option>
+                <option value="120">Elke 2 minuten</option>
+                <option value="300">Elke 5 minuten</option>
+            </select>
+
+            <div class="btn-row">
+                <button class="btn-cancel" id="cancelBtn">Annuleren</button>
+                <button class="btn-save" id="saveBtn">Opslaan</button>
+            </div>
+
+            <div id="status"></div>
+            <div id="error"></div>
+        </div>
+    </div>
+
+    <script>
+        const urlInput = document.getElementById('serverUrl');
+        const tokenInput = document.getElementById('token');
+        const mqttBrokerInput = document.getElementById('mqttBroker');
+        const mqttPortInput = document.getElementById('mqttPort');
+        const mqttUserInput = document.getElementById('mqttUser');
+        const mqttPassInput = document.getElementById('mqttPass');
+        const intervalSelect = document.getElementById('interval');
+        const saveBtn = document.getElementById('saveBtn');
+        const cancelBtn = document.getElementById('cancelBtn');
+        const closeBtn = document.getElementById('closeBtn');
+        const statusMsg = document.getElementById('status');
+        const errorMsg = document.getElementById('error');
+
+        function showStatus(text) {
+            statusMsg.innerHTML = '<span class="spinner"></span>' + text;
+            statusMsg.style.display = 'block';
+            errorMsg.style.display = 'none';
+        }
+
+        function showError(text) {
+            errorMsg.innerText = text;
+            errorMsg.style.display = 'block';
+            statusMsg.style.display = 'none';
+        }
+
+        function hideMessages() {
+            errorMsg.style.display = 'none';
+            statusMsg.style.display = 'none';
+        }
+
+        // Reset all form fields to defaults
+        function resetForm() {
+            urlInput.value = '';
+            tokenInput.value = '';
+            tokenInput.placeholder = 'Plak je token hier...';
+            mqttBrokerInput.value = '';
+            mqttPortInput.value = '1883';
+            mqttUserInput.value = '';
+            mqttPassInput.value = '';
+            mqttPassInput.placeholder = 'Optioneel';
+            intervalSelect.value = '30';
+            saveBtn.disabled = false;
+            hideMessages();
+        }
+
+        // Load current config into the form
+        async function loadConfig() {
+            try {
+                // First reset everything
+                resetForm();
+
+                const cfg = await window.api.getFullConfig();
+                if (cfg.url) urlInput.value = cfg.url;
+                if (cfg.token) tokenInput.placeholder = '••••••••  (opgeslagen)';
+                if (cfg.mqtt_broker) mqttBrokerInput.value = cfg.mqtt_broker;
+                if (cfg.mqtt_port) mqttPortInput.value = cfg.mqtt_port;
+                if (cfg.mqtt_username) mqttUserInput.value = cfg.mqtt_username;
+                if (cfg.mqtt_password) mqttPassInput.placeholder = '••••••••  (opgeslagen)';
+                if (cfg.update_interval) intervalSelect.value = String(cfg.update_interval);
+
+                // Ensure save button is enabled after loading
+                saveBtn.disabled = false;
+            } catch (e) {
+                console.error('Failed to load config:', e);
+            }
+        }
+
+        function closeWindow() {
+            window.api.closeSettings();
+        }
+
+        cancelBtn.addEventListener('click', closeWindow);
+        closeBtn.addEventListener('click', closeWindow);
+
+        // Close on Escape
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') closeWindow();
+        });
+
+        // Close when clicking the backdrop (outside the container)
+        document.getElementById('backdrop').addEventListener('click', (e) => {
+            if (e.target === e.currentTarget) closeWindow();
+        });
+
+        // Listen for show-settings event from main process to reload config
+        if (window.api && window.api.onShowSettings) {
+            window.api.onShowSettings(() => {
+                loadConfig();
+            });
+        }
+
+        saveBtn.addEventListener('click', async () => {
+            const url = urlInput.value.trim();
+            const token = tokenInput.value.trim(); // empty = keep existing
+            const mqttBroker = mqttBrokerInput.value.trim();
+            const mqttPort = mqttPortInput.value.trim() || '1883';
+            const mqttUser = mqttUserInput.value.trim();
+            const mqttPass = mqttPassInput.value.trim(); // empty = keep existing
+            const interval = parseInt(intervalSelect.value, 10);
+
+            if (!url) { showError('Voer een HA server adres in.'); return; }
+            if (!mqttBroker) { showError('Voer het MQTT broker adres in.'); return; }
+
+            saveBtn.disabled = true;
+            hideMessages();
+            showStatus('Instellingen opslaan...');
+
+            try {
+                const result = await window.api.saveAllSettings({
+                    url,
+                    token: token || null, // null = keep existing
+                    mqtt_broker: mqttBroker,
+                    mqtt_port: mqttPort,
+                    mqtt_username: mqttUser || null,
+                    mqtt_password: mqttPass || null,
+                    interval,
+                });
+
+                if (result.success) {
+                    showStatus('Opgeslagen! Venster sluit...');
+                    setTimeout(closeWindow, 800);
+                } else {
+                    saveBtn.disabled = false;
+                    showError(result.error || 'Opslaan mislukt.');
+                }
+            } catch (e) {
+                saveBtn.disabled = false;
+                showError('Onverwachte fout bij opslaan.');
+            }
+        });
+
+        // Load config on page load
+        loadConfig();
+    </script>
+</body>
+
+</html>
