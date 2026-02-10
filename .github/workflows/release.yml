@@ -4,21 +4,20 @@ on:
   push:
     tags:
       - 'v*'
-  workflow_dispatch:
-    inputs:
-      tag:
-        description: 'Tag to release (e.g., v1.2.3)'
-        required: true
-        default: 'v1.0.0'
 
 permissions:
   contents: write
 
 jobs:
+  # ── Cross-platform build matrix ──────────────────────────────
   build:
-    runs-on: windows-latest
     # Only run if the tag was NOT created by the auto-release workflow
     if: "!contains(github.event.head_commit.message, 'chore: bump version')"
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
 
     steps:
       - name: Checkout repository
@@ -38,6 +37,34 @@ jobs:
       - name: Build installer
         run: yarn make
 
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: installers-${{ matrix.os }}
+          path: |
+            out/make/**/*.exe
+            out/make/**/*.nupkg
+            out/make/**/*.dmg
+            out/make/**/*.zip
+            out/make/**/*.deb
+            out/make/**/*.rpm
+
+  # ── Collect all artifacts and publish release ────────────────
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    if: "!contains(github.event.head_commit.message, 'chore: bump version')"
+
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: List artifacts
+        run: find artifacts -type f | head -50 || true
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
@@ -46,5 +73,9 @@ jobs:
           prerelease: false
           generate_release_notes: true
           files: |
-            out/make/squirrel.windows/x64/*.exe
-            out/make/squirrel.windows/x64/*.nupkg
+            artifacts/**/*.exe
+            artifacts/**/*.nupkg
+            artifacts/**/*.dmg
+            artifacts/**/*.zip
+            artifacts/**/*.deb
+            artifacts/**/*.rpm

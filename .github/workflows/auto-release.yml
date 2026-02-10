@@ -16,10 +16,12 @@ permissions:
   contents: write
 
 jobs:
-  version-bump-and-release:
-    runs-on: windows-latest
-    # Skip if the commit was made by the bot (prevents infinite loop)
+  # ─── Step 1: Bump version and push tag ───
+  version-bump:
+    runs-on: ubuntu-latest
     if: "!contains(github.event.head_commit.message, 'chore: bump version')"
+    outputs:
+      new_version: ${{ steps.bump.outputs.new_version }}
 
     steps:
       - name: Checkout repository
@@ -27,30 +29,24 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Get current version and bump patch
+        id: bump
+        run: |
+          CURRENT=$(node -p "require('./package.json').version")
+          echo "Current version: $CURRENT"
+          IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT"
+          PATCH=$((PATCH + 1))
+          NEW_VERSION="$MAJOR.$MINOR.$PATCH"
+          echo "New version: $NEW_VERSION"
+          echo "new_version=$NEW_VERSION" >> "$GITHUB_OUTPUT"
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20
 
-      - name: Get current version and bump patch
-        id: bump
-        shell: pwsh
-        run: |
-          $pkg = Get-Content package.json -Raw | ConvertFrom-Json
-          $current = $pkg.version
-          Write-Host "Current version: $current"
-
-          $parts = $current.Split('.')
-          $parts[2] = [string]([int]$parts[2] + 1)
-          $newVersion = $parts -join '.'
-          Write-Host "New version: $newVersion"
-
-          echo "new_version=$newVersion" >> $env:GITHUB_OUTPUT
-
       - name: Update package.json version
-        shell: pwsh
-        run: |
-          npm version ${{ steps.bump.outputs.new_version }} --no-git-tag-version --allow-same-version
+        run: npm version ${{ steps.bump.outputs.new_version }} --no-git-tag-version --allow-same-version
 
       - name: Commit version bump and create tag
         run: |
@@ -61,6 +57,36 @@ jobs:
           git tag "v${{ steps.bump.outputs.new_version }}"
           git push origin main --tags
 
+  # ─── Step 2: Build on all platforms in parallel ───
+  build:
+    needs: version-bump
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            platform: windows
+            artifact-glob: out/make/squirrel.windows/x64/*
+          - os: macos-latest
+            platform: macos
+            artifact-glob: out/make/**/*
+          - os: ubuntu-latest
+            platform: linux
+            artifact-glob: out/make/**/*
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: v${{ needs.version-bump.outputs.new_version }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
       - name: Force HTTPS instead of SSH for git
         run: git config --global url."https://github.com/".insteadOf ssh://git@github.com/
 
@@ -70,14 +96,46 @@ jobs:
       - name: Build installer
         run: yarn make
 
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-${{ matrix.platform }}
+          path: |
+            out/make/squirrel.windows/x64/*.exe
+            out/make/squirrel.windows/x64/*.nupkg
+            out/make/*.dmg
+            out/make/zip/darwin/**/*.zip
+            out/make/deb/x64/*.deb
+            out/make/rpm/x64/*.rpm
+          if-no-files-found: ignore
+
+  # ─── Step 3: Create release with all platform artifacts ───
+  release:
+    needs: [version-bump, build]
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: List artifacts
+        run: find artifacts -type f 2>/dev/null || echo "No artifacts directory" && ls -la artifacts/ 2>/dev/null || true
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v${{ steps.bump.outputs.new_version }}
-          name: Home Assistant Companion v${{ steps.bump.outputs.new_version }}
+          tag_name: v${{ needs.version-bump.outputs.new_version }}
+          name: Home Assistant Companion v${{ needs.version-bump.outputs.new_version }}
           draft: false
           prerelease: false
           generate_release_notes: true
           files: |
-            out/make/squirrel.windows/x64/*.exe
-            out/make/squirrel.windows/x64/*.nupkg
+            artifacts/**/*.exe
+            artifacts/**/*.nupkg
+            artifacts/**/*.dmg
+            artifacts/**/*.zip
+            artifacts/**/*.deb
+            artifacts/**/*.rpm

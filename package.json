@@ -1,6 +1,6 @@
 {
   "name": "home.assistant.app",
-  "version": "1.0.1",
+  "version": "1.0.0",
   "description": "Home Assistant Companion App - Desktop sensor integration",
   "author": "Phillippe Pelzer",
   "main": "main.js",
