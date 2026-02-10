@@ -1,8 +1,8 @@
-# 🏠 Home Assistant Companion — Windows Desktop App
+# 🏠 Home Assistant Companion App
 
-Een Electron-gebaseerde companion app voor [Home Assistant](https://www.home-assistant.io/) die je Windows PC als volledig sensorapparaat beschikbaar maakt via **MQTT Discovery**.
+Een Electron-gebaseerde companion app voor [Home Assistant](https://www.home-assistant.io/) die je desktop PC als volledig sensorapparaat beschikbaar maakt via **MQTT Discovery** en de **Mobile App webhook API**.
 
-![Platform](https://img.shields.io/badge/platform-Windows-blue)
+![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-blue)
 ![Electron](https://img.shields.io/badge/Electron-latest-47848F?logo=electron)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
@@ -11,11 +11,14 @@ Een Electron-gebaseerde companion app voor [Home Assistant](https://www.home-ass
 ## ✨ Features
 
 - **Home Assistant dashboard** als native desktop venster
-- **46+ hardware sensoren** automatisch beschikbaar in HA via MQTT Discovery
+- **47+ hardware sensoren** automatisch beschikbaar in HA via MQTT Discovery + Webhook
+- **Dual-channel updates** — sensoren worden via webhook (primair) én MQTT gepubliceerd
+- **Resource-vriendelijk** — native Node.js APIs voor CPU/geheugen/uptime, gestaffelde caching voor dure queries
 - **Systeemvak (tray)** — app draait op de achtergrond bij sluiten
 - **Instellingen overlay** — configureer alles vanuit de app
 - **Automatische cleanup** — verouderde sensoren worden automatisch opgeruimd
 - **Last Will & Testament** — HA weet direct wanneer de PC offline gaat
+- **Cross-platform** — builds voor Windows, macOS en Linux
 
 ---
 
@@ -87,7 +90,7 @@ Een Electron-gebaseerde companion app voor [Home Assistant](https://www.home-ass
 
 ## 🔧 Vereisten
 
-- **Windows 10/11**
+- **Windows 10/11**, **macOS 11+**, of **Linux** (Debian/Ubuntu/Fedora)
 - **Home Assistant** met netwerktoegang
 - **MQTT Broker** (bijv. [Mosquitto](https://mosquitto.org/))
 - **MQTT Integration** geconfigureerd in Home Assistant
@@ -101,8 +104,8 @@ Een Electron-gebaseerde companion app voor [Home Assistant](https://www.home-ass
 
 ```bash
 # Clone de repository
-git clone https://github.com/Fill84/Home-Assistant-Windows-App.git
-cd Home-Assistant-Windows-App
+git clone https://github.com/Fill84/Home-Assistant-Companion-App.git
+cd Home-Assistant-Companion-App
 
 # Installeer dependencies
 yarn
@@ -111,13 +114,20 @@ yarn
 yarn start
 ```
 
-### Bouwen als Windows installer
+### Bouwen als installer
 
 ```bash
+# Bouw voor je huidige platform
 yarn make
 ```
 
-De installer verschijnt in `out/make/squirrel.windows/`.
+| Platform | Output | Locatie |
+|----------|--------|---------|
+| Windows | `.exe` (Squirrel installer) | `out/make/squirrel.windows/` |
+| macOS | `.dmg` disk image | `out/make/` |
+| Linux | `.deb` / `.rpm` package | `out/make/deb/` of `out/make/rpm/` |
+
+> **Let op:** Cross-platform builds moeten op het doelplatform zelf gedraaid worden. Gebruik bijv. GitHub Actions met een matrix build voor geautomatiseerde multi-platform releases.
 
 ---
 
@@ -138,48 +148,82 @@ Na configuratie laadt de app je Home Assistant dashboard en beginnen de sensoren
 
 ## 🏗️ Architectuur
 
+```mermaid
+graph TD
+    subgraph Electron["🖥️ Electron App"]
+        Main["main.js"]
+        BW["BrowserWindow<br/><i>HA Dashboard</i>"]
+        Preload["preload.js<br/><i>IPC Bridge</i>"]
+        Tray["System Tray"]
+        Settings["Settings Modal"]
+
+        subgraph Sources["src/"]
+            Loop["sensor-loop.js<br/><i>Periodieke orchestratie</i>"]
+            Sensors["sensors.js"]
+            API["ha-api.js"]
+            Config["config.js<br/><i>JSON persistentie</i>"]
+
+            subgraph Tier1["⚡ Tier 1 — Native APIs (0 cost)"]
+                CPU["os.cpus()"]
+                Mem["os.freemem()"]
+                Up["os.uptime()"]
+            end
+
+            subgraph Tier2["🔄 Tier 2 — si.get() (gestaffelde cache)"]
+                GPU["GPU temp / usage"]
+                Net["Netwerk stats"]
+                Disk["Disk usage / temp"]
+                Temp["CPU temp"]
+            end
+        end
+    end
+
+    HA["🏠 Home Assistant<br/><b>47+ sensoren</b>"]
+    MQTT["📡 MQTT Broker<br/><i>Mosquitto</i>"]
+
+    Main --> BW
+    Main --> Tray
+    Main --> Settings
+    Main --> Loop
+    BW --- Preload
+
+    Loop --> Sensors
+    Loop --> API
+    Sensors --> Tier1
+    Sensors --> Tier2
+    Config -.-> Loop
+
+    API -- "Webhook (REST)" --> HA
+    API -- "MQTT Publish" --> MQTT
+    MQTT -- "MQTT Discovery" --> HA
+
+    style Tier1 fill:#1a3a1a,stroke:#4caf50,color:#fff
+    style Tier2 fill:#1a2a3a,stroke:#2196f3,color:#fff
+    style HA fill:#1a1a3a,stroke:#03a9f4,color:#fff
+    style MQTT fill:#2a1a1a,stroke:#ff9800,color:#fff
 ```
-┌─────────────────────────────────────┐
-│         Electron (main.js)          │
-│  ┌───────────┐  ┌────────────────┐  │
-│  │  BrowserWindow (HA Dashboard) │  │
-│  └───────────┘  └────────────────┘  │
-│  ┌───────────┐  ┌────────────────┐  │
-│  │ Tray Icon  │  │ Settings Modal │  │
-│  └───────────┘  └────────────────┘  │
-├─────────────────────────────────────┤
-│            src/                      │
-│  ┌─────────────┐ ┌───────────────┐  │
-│  │  sensors.js  │ │  ha-api.js    │  │
-│  │ (systeminf.) │ │ (MQTT client) │  │
-│  └──────┬──────┘ └───────┬───────┘  │
-│         │                 │          │
-│  ┌──────┴─────────────────┴───────┐  │
-│  │       sensor-loop.js           │  │
-│  │   (periodieke sensor polling)  │  │
-│  └────────────────────────────────┘  │
-│  ┌────────────────────────────────┐  │
-│  │         config.js              │  │
-│  │  (JSON config persistentie)    │  │
-│  └────────────────────────────────┘  │
-└─────────────────────────────────────┘
-          │
-          │ MQTT
-          ▼
-┌─────────────────────┐
-│   Mosquitto Broker   │
-└──────────┬──────────┘
-           │
-           ▼
-┌─────────────────────┐
-│   Home Assistant     │
-│  (MQTT Integration)  │
-│                      │
-│  📊 46+ sensoren     │
-│  automatisch via     │
-│  MQTT Discovery      │
-└─────────────────────┘
-```
+
+### Resource-optimalisatie
+
+De sensor collectie is opgedeeld in twee tiers voor minimaal resource-gebruik:
+
+| Tier | Bron | Kosten | Voorbeeld |
+|------|------|--------|-----------|
+| **Tier 1** | Native Node.js APIs | 0 child processes | CPU usage, geheugen, uptime |
+| **Tier 2** | `systeminformation` (gecached) | Alleen bij refresh | GPU temp, netwerk, disk |
+
+Tier 2 data wordt gestaffeld ververst — niet alles tegelijk:
+
+| Data | Refresh interval | Reden |
+|------|----------------:|-------|
+| Netwerk stats | elke tick | Meest dynamisch |
+| CPU temperatuur | elke 2 ticks | WMI subprocess |
+| Batterij | elke 2 ticks | Verandert langzaam |
+| CPU snelheid | elke 3 ticks | Verandert langzaam |
+| GPU (nvidia-smi) | elke 3 ticks | Zwaar subprocess |
+| Disk gebruik | elke 6 ticks | Verandert heel langzaam |
+| Swap geheugen | elke 6 ticks | Verandert langzaam |
+| Disk temperatuur | elke 10 ticks | Verandert heel langzaam |
 
 ### MQTT Topics
 
@@ -211,7 +255,7 @@ yarn start
 # Package zonder installer
 yarn package
 
-# Bouw Windows installer (Squirrel)
+# Bouw installer voor je huidige platform
 yarn make
 ```
 
@@ -221,24 +265,30 @@ yarn make
 ├── main.js              # Electron hoofdproces
 ├── preload.js           # IPC bridge + settings overlay
 ├── setup.html           # Eerste-keer setup pagina
-├── forge.config.js      # Electron Forge build config
+├── forge.config.js      # Electron Forge build config (cross-platform)
 ├── package.json
 ├── assets/
-│   ├── icon.ico         # App icoon (multi-size)
-│   └── icon.png         # App icoon (256px)
+│   ├── icon.ico         # Windows icoon (multi-size: 16–256px)
+│   ├── icon.icns        # macOS icoon
+│   ├── icon.png         # Basis icoon (256px)
+│   └── icon-512.png     # Hoge resolutie icoon (512px)
 └── src/
-    ├── config.js        # Configuratie opslag
-    ├── ha-api.js        # MQTT Discovery client
-    ├── sensors.js       # Hardware sensor collectie
-    ├── sensor-loop.js   # Periodieke sensor polling
+    ├── config.js        # Configuratie opslag (JSON)
+    ├── ha-api.js        # MQTT Discovery + Webhook client
+    ├── sensors.js       # Hardware sensor collectie (geoptimaliseerd)
+    ├── sensor-loop.js   # Periodieke sensor orchestratie
     └── tray.js          # Systeemvak beheer
 ```
 
 ---
 
-## 📝 Waarom MQTT en niet Mobile App?
+## 📝 Waarom MQTT én Webhook?
 
-Home Assistant filtert standaard alle entiteiten van het `mobile_app` platform uit het **Overzicht dashboard** ([bron](https://github.com/home-assistant/frontend/blob/dev/src/panels/lovelace/strategies/original-states/original-states-strategy.ts)). Omdat dit een **desktop** app is en geen mobiel apparaat, registreert deze app sensoren via **MQTT Discovery**. Hierdoor verschijnen alle sensoren direct op het Overzicht dashboard zonder extra configuratie.
+De app gebruikt **twee kanalen** om sensoren bij te werken in Home Assistant:
+
+1. **Webhook (Mobile App API)** — het primaire kanaal. Registreert het apparaat als `mobile_app` integratie en pusht sensorwaarden via de webhook. Dit is de meest betrouwbare manier om entities in HA bij te werken.
+
+2. **MQTT Discovery** — het secundaire kanaal. Publiceert discovery configs zodat sensoren automatisch verschijnen via de MQTT integratie. Home Assistant filtert standaard alle entiteiten van het `mobile_app` platform uit het **Overzicht dashboard** ([bron](https://github.com/home-assistant/frontend/blob/dev/src/panels/lovelace/strategies/original-states/original-states-strategy.ts)), maar MQTT-entities worden wél getoond.
 
 ---
 
