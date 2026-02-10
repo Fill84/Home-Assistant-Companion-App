@@ -42,6 +42,7 @@ module.exports = {
             config: {
                 options: {
                     name: 'home-assistant-companion',
+                    bin: 'home-assistant-companion',
                     productName: 'Home Assistant Companion',
                     icon: './assets/icon.png',
                     categories: ['Utility'],
@@ -56,6 +57,7 @@ module.exports = {
             config: {
                 options: {
                     name: 'home-assistant-companion',
+                    bin: 'home-assistant-companion',
                     productName: 'Home Assistant Companion',
                     icon: './assets/icon.png',
                     categories: ['Utility'],

@@ -16,71 +16,43 @@ permissions:
   contents: write
 
 jobs:
-  # ─── Step 1: Bump version and push tag ───
-  version-bump:
+  # ─── Step 1: Read current version ───
+  prepare:
     runs-on: ubuntu-latest
     if: "!contains(github.event.head_commit.message, 'chore: bump version')"
     outputs:
-      new_version: ${{ steps.bump.outputs.new_version }}
+      version: ${{ steps.version.outputs.version }}
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
-      - name: Get current version and bump patch
-        id: bump
+      - name: Read current version
+        id: version
         run: |
-          CURRENT=$(node -p "require('./package.json').version")
-          echo "Current version: $CURRENT"
-          IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT"
-          PATCH=$((PATCH + 1))
-          NEW_VERSION="$MAJOR.$MINOR.$PATCH"
-          echo "New version: $NEW_VERSION"
-          echo "new_version=$NEW_VERSION" >> "$GITHUB_OUTPUT"
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-
-      - name: Update package.json version
-        run: npm version ${{ steps.bump.outputs.new_version }} --no-git-tag-version --allow-same-version
-
-      - name: Commit version bump and create tag
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add package.json
-          git commit -m "chore: bump version to ${{ steps.bump.outputs.new_version }}"
-          git tag "v${{ steps.bump.outputs.new_version }}"
-          git push origin main --tags
+          VERSION=$(node -p "require('./package.json').version")
+          echo "Version to release: $VERSION"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
   # ─── Step 2: Build on all platforms in parallel ───
   build:
-    needs: version-bump
+    needs: prepare
     strategy:
       fail-fast: false
       matrix:
         include:
           - os: windows-latest
             platform: windows
-            artifact-glob: out/make/squirrel.windows/x64/*
           - os: macos-latest
             platform: macos
-            artifact-glob: out/make/**/*
           - os: ubuntu-latest
             platform: linux
-            artifact-glob: out/make/**/*
 
     runs-on: ${{ matrix.os }}
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-        with:
-          ref: v${{ needs.version-bump.outputs.new_version }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -111,7 +83,7 @@ jobs:
 
   # ─── Step 3: Create release with all platform artifacts ───
   release:
-    needs: [version-bump, build]
+    needs: [prepare, build]
     runs-on: ubuntu-latest
 
     steps:
@@ -127,8 +99,8 @@ jobs:
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v${{ needs.version-bump.outputs.new_version }}
-          name: Home Assistant Companion v${{ needs.version-bump.outputs.new_version }}
+          tag_name: v${{ needs.prepare.outputs.version }}
+          name: Home Assistant Companion v${{ needs.prepare.outputs.version }}
           draft: false
           prerelease: false
           generate_release_notes: true
@@ -139,3 +111,36 @@ jobs:
             artifacts/**/*.zip
             artifacts/**/*.deb
             artifacts/**/*.rpm
+
+  # ─── Step 4: Bump version for next release ───
+  version-bump:
+    needs: [prepare, release]
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Bump patch version
+        run: |
+          CURRENT="${{ needs.prepare.outputs.version }}"
+          IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT"
+          PATCH=$((PATCH + 1))
+          NEXT="$MAJOR.$MINOR.$PATCH"
+          echo "Bumping $CURRENT → $NEXT"
+          npm version $NEXT --no-git-tag-version --allow-same-version
+
+      - name: Commit version bump
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add package.json
+          git commit -m "chore: bump version to next dev"
+          git push origin main
